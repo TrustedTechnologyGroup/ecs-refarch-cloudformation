@@ -6,28 +6,17 @@ Parameters:
   EnvironmentName:
     Description: An environment name that will be prefixed to resource names
     Type: String
+    Default: ttg-ecs
 
   InstanceType:
     Description: Which instance type should we use to build the ECS cluster?
     Type: String
-    Default: c4.large
+    Default: t2.micro
 
   ClusterSize:
     Description: How many ECS hosts do you want to initially deploy?
     Type: Number
     Default: 4
-
-  VPC:
-    Description: Choose which VPC this ECS cluster should be deployed to
-    Type: AWS::EC2::VPC::Id
-
-  Subnets:
-    Description: Choose which subnets this ECS cluster should be deployed to
-    Type: List<AWS::EC2::Subnet::Id>
-
-  SecurityGroup:
-    Description: Select the Security Group to use for the ECS cluster hosts
-    Type: AWS::EC2::SecurityGroup::Id
 
 Mappings:
   # These are the latest ECS optimized AMIs as of Feb 2018:
@@ -42,38 +31,8 @@ Mappings:
   # (note the AMI identifier is region specific)
 
   AWSRegionToAMI:
-    us-east-2:
-      AMI: ami-0a0c6574ce16ce87a
     us-east-1:
-      AMI: ami-07eb698ce660402d2
-    us-west-2:
-      AMI: ami-09568291a9d6c804c
-    us-west-1:
-      AMI: ami-04c22ba97a0c063c4
-    eu-west-3:
-      AMI: ami-0a0948de946510ec0
-    eu-west-2:
-      AMI: ami-0cb31bf24b130a0f9
-    eu-west-1:
-      AMI: ami-066826c6a40879d75
-    eu-central-1:
-      AMI: ami-0b9fee3a2d0596ed1
-    ap-northeast-2:
-      AMI: ami-0b52e57bed048ca48
-    ap-northeast-1:
-      AMI: ami-0edf19001c48838c7
-    ap-southeast-2:
-      AMI: ami-08c26730c8ee004fa
-    ap-southeast-1:
-      AMI: ami-08d4fe232c67b81b8
-    ca-central-1:
-      AMI: ami-055750f063052ec55
-    ap-south-1:
-      AMI: ami-05f009513cd58ac90
-    sa-east-1:
-      AMI: ami-0ada25501ac1375b3
-    us-gov-west-1:
-      AMI: ami-3c39a25d
+      AMI: ami-045f1b3f87ed83659
 
 Resources:
   ECSCluster:
@@ -85,7 +44,7 @@ Resources:
     DependsOn: ECSCluster
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      VPCZoneIdentifier: !Ref Subnets
+      VPCZoneIdentifier: !Split [ ',', !ImportValue VPC-ECS-PRIVATE-SUBNETS]
       LaunchConfigurationName: !Ref ECSLaunchConfiguration
       MinSize: !Ref ClusterSize
       MaxSize: !Ref ClusterSize
@@ -116,7 +75,7 @@ Resources:
       ImageId: !FindInMap [AWSRegionToAMI, !Ref "AWS::Region", AMI]
       InstanceType: !Ref InstanceType
       SecurityGroups:
-        - !Ref SecurityGroup
+        - !ImportValue SG-ECS-HOST
       IamInstanceProfile: !Ref ECSInstanceProfile
       UserData:
         "Fn::Base64": !Sub |
@@ -239,64 +198,10 @@ Resources:
                 }
             }]
         }
-      Policies:
-        - PolicyName: ecs-service
-          PolicyDocument: |
-            {
-                "Statement": [{
-                    "Effect": "Allow",
-                    "Action": [
-                        "ecs:CreateCluster",
-                        "ecs:DeregisterContainerInstance",
-                        "ecs:DiscoverPollEndpoint",
-                        "ecs:Poll",
-                        "ecs:RegisterContainerInstance",
-                        "ecs:StartTelemetrySession",
-                        "ecs:Submit*",
-                        "logs:CreateLogStream",
-                        "logs:PutLogEvents",
-                        "ecr:BatchCheckLayerAvailability",
-                        "ecr:BatchGetImage",
-                        "ecr:GetDownloadUrlForLayer",
-                        "ecr:GetAuthorizationToken",
-                        "ssm:DescribeAssociation",
-                        "ssm:GetDeployablePatchSnapshotForInstance",
-                        "ssm:GetDocument",
-                        "ssm:GetManifest",
-                        "ssm:GetParameters",
-                        "ssm:ListAssociations",
-                        "ssm:ListInstanceAssociations",
-                        "ssm:PutInventory",
-                        "ssm:PutComplianceItems",
-                        "ssm:PutConfigurePackageResult",
-                        "ssm:UpdateAssociationStatus",
-                        "ssm:UpdateInstanceAssociationStatus",
-                        "ssm:UpdateInstanceInformation",
-                        "ec2messages:AcknowledgeMessage",
-                        "ec2messages:DeleteMessage",
-                        "ec2messages:FailMessage",
-                        "ec2messages:GetEndpoint",
-                        "ec2messages:GetMessages",
-                        "ec2messages:SendReply",
-                        "cloudwatch:PutMetricData",
-                        "ec2:DescribeInstanceStatus",
-                        "ds:CreateComputer",
-                        "ds:DescribeDirectories",
-                        "logs:CreateLogGroup",
-                        "logs:CreateLogStream",
-                        "logs:DescribeLogGroups",
-                        "logs:DescribeLogStreams",
-                        "logs:PutLogEvents",
-                        "s3:PutObject",
-                        "s3:GetObject",
-                        "s3:AbortMultipartUpload",
-                        "s3:ListMultipartUploadParts",
-                        "s3:ListBucket",
-                        "s3:ListBucketMultipartUploads"
-                    ],
-                    "Resource": "*"
-                }]
-            }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+            
 
   ECSInstanceProfile:
     Type: AWS::IAM::InstanceProfile
