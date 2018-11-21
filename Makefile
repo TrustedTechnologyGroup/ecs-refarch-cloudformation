@@ -118,24 +118,24 @@ deploy-ecs:
 remove-ecs:
 	aws cloudformation delete-stack --stack-name $(stack-name)-ecs
 
-image: binary
-	$(call blue, "Building docker image...")
-	docker build -t ${name}:${version} .
-	$(MAKE) clean
+# image: binary
+# 	$(call blue, "Building docker image...")
+# 	docker build -t ${name}:${version} .
+# 	$(MAKE) clean
 
-run:
-	$(call blue, "Testing run...")
-	@echo "$(name)"
-	@echo "$(stack-name)"
+# run:
+# 	$(call blue, "Testing run...")
+# 	@echo "$(name)"
+# 	@echo "$(stack-name)"
 
-	# docker run -i -t --rm -p 8001:8001 ${name}:${version} 
+# 	# docker run -i -t --rm -p 8001:8001 ${name}:${version} 
 
-publish:  
-	$(call blue, "Publishing Docker image to registry...")
-	docker tag ${name}:latest ${registry}/${name}:${version}
-	docker push ${registry}/${name}:${version} 
+# publish:  
+# 	$(call blue, "Publishing Docker image to registry...")
+# 	docker tag ${name}:latest ${registry}/${name}:${version}
+# 	docker push ${registry}/${name}:${version} 
 
-clean: remove-bucket
+# clean: remove-bucket
 
 remove-bucket:
 	aws s3 rm s3://$(bucket-name)-s3/infrastructure
